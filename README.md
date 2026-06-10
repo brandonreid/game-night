@@ -17,16 +17,11 @@ CSS, shadcn/ui, and Supabase (Postgres).
 
 ## 1. Install dependencies
 
-This project uses React 19, and one transitive dependency (`react-day-picker`)
-hasn't updated its peer-dependency range yet. Install with
-`--legacy-peer-deps` so npm doesn't choke on it:
-
 ```bash
-npm install --legacy-peer-deps
+npm install
 ```
 
-> Using Bun instead? Just run `bun install` — Bun ignores the peer-dependency
-> conflict automatically.
+> Using Bun instead? Run `bun install`.
 
 ## 2. Configure environment variables
 
