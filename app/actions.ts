@@ -1,24 +1,9 @@
 "use server"
 
 import { revalidatePath, revalidateTag } from "next/cache"
-import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import type { Database } from "@/lib/database.types"
-
-// Create a Supabase client specifically for server actions
-const createServerSupabaseClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error("Missing Supabase environment variables")
-  }
-
-  return createClient<Database>(supabaseUrl, supabaseKey, {
-    auth: { persistSession: false },
-  })
-}
+import { db, toPlainRows, type Player } from "@/lib/db"
 
 // Password validation and authentication
 export async function validatePassword(password: string) {
@@ -85,19 +70,21 @@ export async function addPlayer(name: string, games: string) {
   }
 
   try {
-    const supabase = createServerSupabaseClient()
-
     // Check if player already exists
-    const { data: existingPlayer } = await supabase.from("players").select("id").eq("name", name).maybeSingle()
+    const existing = await db.execute({
+      sql: "SELECT id FROM players WHERE name = ? LIMIT 1",
+      args: [name],
+    })
 
-    if (existingPlayer) {
+    if (existing.rows.length > 0) {
       return { success: false, error: "Player already registered" }
     }
 
     // Add new player
-    const { error } = await supabase.from("players").insert({ name, games: games || null })
-
-    if (error) throw error
+    await db.execute({
+      sql: "INSERT INTO players (name, games) VALUES (?, ?)",
+      args: [name, games || null],
+    })
 
     // Revalidate both the path and tag
     revalidatePath("/game-night")
@@ -112,12 +99,11 @@ export async function addPlayer(name: string, games: string) {
 // New function to delete a player
 export async function deletePlayer(playerId: string) {
   try {
-    const supabase = createServerSupabaseClient()
-
     // Delete the player
-    const { error } = await supabase.from("players").delete().eq("id", playerId)
-
-    if (error) throw error
+    await db.execute({
+      sql: "DELETE FROM players WHERE id = ?",
+      args: [playerId],
+    })
 
     // Revalidate both the path and tag
     revalidatePath("/game-night")
@@ -131,17 +117,8 @@ export async function deletePlayer(playerId: string) {
 
 export async function getPlayers() {
   try {
-    const supabase = createServerSupabaseClient()
-
-    const { data: players, error } = await supabase
-      .from("players")
-      .select("*")
-      .order("joined_at", { ascending: true })
-      .returns<any[]>()
-
-    if (error) throw error
-
-    return players || []
+    const result = await db.execute("SELECT * FROM players ORDER BY joined_at ASC")
+    return toPlainRows<Player>(result)
   } catch (error) {
     console.error("Error getting players:", error)
     return []
@@ -150,28 +127,20 @@ export async function getPlayers() {
 
 export async function getGameNightInfo() {
   try {
-    const supabase = createServerSupabaseClient()
-
     // Get the active game night
-    const { data: gameNight, error } = await supabase
-      .from("game_nights")
-      .select("*")
-      .eq("is_active", true)
-      .order("date", { ascending: true })
-      .limit(1)
-      .single()
+    const { rows } = await db.execute(
+      "SELECT * FROM game_nights WHERE is_active = 1 ORDER BY date ASC LIMIT 1",
+    )
 
-    if (error) {
-      // If no game night found, return default values
-      if (error.code === "PGRST116") {
-        return {
-          date: "2025-05-21T19:00:00.000Z",
-          description: "Join us for an exciting game night!",
-        }
+    // If no game night found, return default values
+    if (rows.length === 0) {
+      return {
+        date: "2025-05-21T19:00:00.000Z",
+        description: "Join us for an exciting game night!",
       }
-      throw error
     }
 
+    const gameNight = rows[0] as unknown as { date: string; description: string | null }
     return {
       date: gameNight.date,
       description: gameNight.description || "Join us for an exciting game night!",
@@ -254,19 +223,21 @@ export async function addBrianPlayer(name: string, games: string) {
   }
 
   try {
-    const supabase = createServerSupabaseClient()
-
     // Check if player already exists
-    const { data: existingPlayer } = await supabase.from("brian_players").select("id").eq("name", name).maybeSingle()
+    const existing = await db.execute({
+      sql: "SELECT id FROM brian_players WHERE name = ? LIMIT 1",
+      args: [name],
+    })
 
-    if (existingPlayer) {
+    if (existing.rows.length > 0) {
       return { success: false, error: "Player already registered" }
     }
 
     // Add new player
-    const { error } = await supabase.from("brian_players").insert({ name, games: games || null })
-
-    if (error) throw error
+    await db.execute({
+      sql: "INSERT INTO brian_players (name, games) VALUES (?, ?)",
+      args: [name, games || null],
+    })
 
     revalidatePath("/game-night")
     revalidateTag("brian-players")
@@ -279,11 +250,10 @@ export async function addBrianPlayer(name: string, games: string) {
 
 export async function deleteBrianPlayer(playerId: string) {
   try {
-    const supabase = createServerSupabaseClient()
-
-    const { error } = await supabase.from("brian_players").delete().eq("id", playerId)
-
-    if (error) throw error
+    await db.execute({
+      sql: "DELETE FROM brian_players WHERE id = ?",
+      args: [playerId],
+    })
 
     revalidatePath("/game-night")
     revalidateTag("brian-players")
@@ -296,17 +266,8 @@ export async function deleteBrianPlayer(playerId: string) {
 
 export async function getBrianPlayers() {
   try {
-    const supabase = createServerSupabaseClient()
-
-    const { data: players, error } = await supabase
-      .from("brian_players")
-      .select("*")
-      .order("joined_at", { ascending: true })
-      .returns<any[]>()
-
-    if (error) throw error
-
-    return players || []
+    const result = await db.execute("SELECT * FROM brian_players ORDER BY joined_at ASC")
+    return toPlainRows<Player>(result)
   } catch (error) {
     console.error("Error getting Brian players:", error)
     return []
@@ -315,26 +276,18 @@ export async function getBrianPlayers() {
 
 export async function getBrianGameNightInfo() {
   try {
-    const supabase = createServerSupabaseClient()
+    const { rows } = await db.execute(
+      "SELECT * FROM brian_game_nights WHERE is_active = 1 ORDER BY date ASC LIMIT 1",
+    )
 
-    const { data: gameNight, error } = await supabase
-      .from("brian_game_nights")
-      .select("*")
-      .eq("is_active", true)
-      .order("date", { ascending: true })
-      .limit(1)
-      .single()
-
-    if (error) {
-      if (error.code === "PGRST116") {
-        return {
-          date: "2025-05-28T19:00:00.000Z",
-          description: "Board game night at Brian's place! His basement setup is legendary.",
-        }
+    if (rows.length === 0) {
+      return {
+        date: "2025-05-28T19:00:00.000Z",
+        description: "Board game night at Brian's place! His basement setup is legendary.",
       }
-      throw error
     }
 
+    const gameNight = rows[0] as unknown as { date: string; description: string | null }
     return {
       date: gameNight.date,
       description: gameNight.description || "Board game night at Brian's place!",

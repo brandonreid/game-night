@@ -8,7 +8,7 @@ import { Dices } from "lucide-react"
 
 type Player = {
   name: string
-  games: string
+  games: string | null
 }
 
 export default function TableSorter({ players }: { players: Player[] }) {
