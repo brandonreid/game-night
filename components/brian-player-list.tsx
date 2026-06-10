@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { deleteBrianPlayer } from "@/app/actions"
+import { deleteBrianPlayer, deleteAllBrianPlayers } from "@/app/actions"
 import ConfirmationModal from "./confirmation-modal"
 
 type Player = {
@@ -18,6 +18,8 @@ export default function BrianPlayerList({ players }: { players: Player[] }) {
   const [mountedPlayers, setMountedPlayers] = useState<Player[]>([])
   const [playerToDelete, setPlayerToDelete] = useState<Player | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
+  const [isDeletingAll, setIsDeletingAll] = useState(false)
 
   useEffect(() => {
     if (players.length > mountedPlayers.length) {
@@ -57,6 +59,18 @@ export default function BrianPlayerList({ players }: { players: Player[] }) {
     setPlayerToDelete(null)
   }
 
+  const handleConfirmDeleteAll = async () => {
+    setIsDeletingAll(true)
+    try {
+      await deleteAllBrianPlayers()
+    } catch (error) {
+      console.error("Error deleting all players:", error)
+    } finally {
+      setIsDeletingAll(false)
+      setConfirmDeleteAll(false)
+    }
+  }
+
   if (players.length === 0) {
     return (
       <div className="text-center p-8 border border-emerald-700/50 bg-slate-800/50 rounded-lg">
@@ -69,8 +83,16 @@ export default function BrianPlayerList({ players }: { players: Player[] }) {
   return (
     <>
       <div className="border-2 border-emerald-700/50 bg-slate-800/50 rounded-lg p-3">
-        <div className="text-center mb-3 bg-emerald-900/30 py-2 rounded">
+        <div className="relative text-center mb-3 bg-emerald-900/30 py-2 rounded">
           <h2 className="text-xl font-bold text-emerald-400">PLAYERS</h2>
+          <button
+            onClick={() => setConfirmDeleteAll(true)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-300 focus:outline-none focus:ring-1 focus:ring-red-500 p-1 transition-colors"
+            aria-label="Remove all players"
+            title="Remove all players"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
         <div className="grid grid-cols-1 gap-2">
@@ -125,6 +147,17 @@ export default function BrianPlayerList({ players }: { players: Player[] }) {
         isProcessing={isDeleting}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
+      />
+
+      <ConfirmationModal
+        isOpen={confirmDeleteAll}
+        title="REMOVE ALL PLAYERS"
+        message={`Are you sure you want to remove all ${players.length} players from Brian's game night? This cannot be undone.`}
+        confirmLabel="REMOVE ALL"
+        cancelLabel="CANCEL"
+        isProcessing={isDeletingAll}
+        onConfirm={handleConfirmDeleteAll}
+        onCancel={() => setConfirmDeleteAll(false)}
       />
     </>
   )

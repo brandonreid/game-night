@@ -115,6 +115,20 @@ export async function deletePlayer(playerId: string) {
   }
 }
 
+// Delete every registered player at once
+export async function deleteAllPlayers() {
+  try {
+    await db.execute("DELETE FROM players")
+
+    revalidatePath("/game-night")
+    revalidateTag("players")
+    return { success: true }
+  } catch (error) {
+    console.error("Error deleting all players:", error)
+    return { success: false, error: "Failed to delete players" }
+  }
+}
+
 export async function getPlayers() {
   try {
     const result = await db.execute("SELECT * FROM players ORDER BY joined_at ASC")
@@ -151,6 +165,34 @@ export async function getGameNightInfo() {
       date: "2025-05-21T19:00:00.000Z",
       description: "Join us for an exciting game night!",
     }
+  }
+}
+
+export async function updateGameNightDate(date: string) {
+  if (!date || Number.isNaN(new Date(date).getTime())) {
+    return { success: false, error: "Invalid date" }
+  }
+
+  try {
+    const result = await db.execute({
+      sql: "UPDATE game_nights SET date = ? WHERE is_active = 1",
+      args: [date],
+    })
+
+    // No active game night yet — seed one so the board has something to show.
+    if (result.rowsAffected === 0) {
+      await db.execute({
+        sql: "INSERT INTO game_nights (date, description, is_active) VALUES (?, ?, 1)",
+        args: [date, "Join us for an exciting game night!"],
+      })
+    }
+
+    revalidatePath("/game-night")
+    revalidateTag("game-night")
+    return { success: true }
+  } catch (error) {
+    console.error("Error updating game night date:", error)
+    return { success: false, error: "Failed to update date" }
   }
 }
 
@@ -264,6 +306,19 @@ export async function deleteBrianPlayer(playerId: string) {
   }
 }
 
+export async function deleteAllBrianPlayers() {
+  try {
+    await db.execute("DELETE FROM brian_players")
+
+    revalidatePath("/game-night")
+    revalidateTag("brian-players")
+    return { success: true }
+  } catch (error) {
+    console.error("Error deleting all Brian players:", error)
+    return { success: false, error: "Failed to delete players" }
+  }
+}
+
 export async function getBrianPlayers() {
   try {
     const result = await db.execute("SELECT * FROM brian_players ORDER BY joined_at ASC")
@@ -271,6 +326,33 @@ export async function getBrianPlayers() {
   } catch (error) {
     console.error("Error getting Brian players:", error)
     return []
+  }
+}
+
+export async function updateBrianGameNightDate(date: string) {
+  if (!date || Number.isNaN(new Date(date).getTime())) {
+    return { success: false, error: "Invalid date" }
+  }
+
+  try {
+    const result = await db.execute({
+      sql: "UPDATE brian_game_nights SET date = ? WHERE is_active = 1",
+      args: [date],
+    })
+
+    if (result.rowsAffected === 0) {
+      await db.execute({
+        sql: "INSERT INTO brian_game_nights (date, description, is_active) VALUES (?, ?, 1)",
+        args: [date, "Board game night at Brian's place! His basement setup is legendary."],
+      })
+    }
+
+    revalidatePath("/game-night")
+    revalidateTag("brian-game-night")
+    return { success: true }
+  } catch (error) {
+    console.error("Error updating Brian game night date:", error)
+    return { success: false, error: "Failed to update date" }
   }
 }
 

@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Home, Gamepad2 } from "lucide-react"
+import { X, Home, Gamepad2, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+import { updateBrianGameNightDate } from "@/app/actions"
 import BrianPlayerList from "./brian-player-list"
 import BrianAddPlayerForm from "./brian-add-player-form"
 import CalendarButtons from "./calendar-buttons"
+import GameNightDateEditor from "./game-night-date-editor"
 
 type Player = {
   id: string
@@ -28,6 +30,7 @@ type BrianBoardModalProps = {
 
 export default function BrianBoardModal({ isOpen, onClose, players, gameNightInfo }: BrianBoardModalProps) {
   const [mounted, setMounted] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -122,29 +125,56 @@ export default function BrianBoardModal({ isOpen, onClose, players, gameNightInf
                 <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-emerald-500 to-transparent mb-6" />
 
                 {/* Game Night Info */}
-                <div className="border-2 border-emerald-700/50 bg-slate-800/50 rounded-lg p-4 mb-6">
+                <div className="relative border-2 border-emerald-700/50 bg-slate-800/50 rounded-lg p-4 mb-6">
+                  {/* Edit toggle — overlays the date section with an inline date picker */}
+                  {!isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="absolute top-2 right-2 p-1.5 rounded text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-900/40 transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      aria-label="Edit session date"
+                      title="Edit date"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  )}
+
                   <div className="text-center">
                     <h2 className="text-2xl font-bold text-emerald-400 mb-2">NEXT SESSION</h2>
-                    <div className="text-xl text-emerald-300">
-                      {formattedDate} at {formattedTime}
-                    </div>
+
+                    {isEditing ? (
+                      <GameNightDateEditor
+                        date={gameNightInfo.date}
+                        variant="emerald"
+                        onSave={updateBrianGameNightDate}
+                        onClose={() => setIsEditing(false)}
+                      />
+                    ) : (
+                      <div className="text-xl text-emerald-300">
+                        {formattedDate} at {formattedTime}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="mt-4 text-emerald-200/80 bg-emerald-900/20 p-3 rounded border border-emerald-700/30">
-                    <div
-                      dangerouslySetInnerHTML={{ __html: gameNightInfo.description }}
-                      className="prose prose-invert prose-emerald max-w-none"
-                    />
-                  </div>
+                  {!isEditing && (
+                    <>
+                      <div className="mt-4 text-emerald-200/80 bg-emerald-900/20 p-3 rounded border border-emerald-700/30">
+                        <div
+                          dangerouslySetInnerHTML={{ __html: gameNightInfo.description }}
+                          className="prose prose-invert prose-emerald max-w-none"
+                        />
+                      </div>
 
-                  {/* Calendar Buttons */}
-                  <CalendarButtons
-                    date={gameNightInfo.date}
-                    title="Secret Game Night"
-                    description="Exclusive board game session - invite only!"
-                    location="Secret Location"
-                    variant="emerald"
-                  />
+                      {/* Calendar Buttons */}
+                      <CalendarButtons
+                        date={gameNightInfo.date}
+                        title="Secret Game Night"
+                        description="Exclusive board game session - invite only!"
+                        location="Secret Location"
+                        variant="emerald"
+                      />
+                    </>
+                  )}
                 </div>
 
                 {/* Players List */}

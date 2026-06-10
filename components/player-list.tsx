@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { deletePlayer } from "@/app/actions"
+import { deletePlayer, deleteAllPlayers } from "@/app/actions"
 import ConfirmationModal from "./confirmation-modal"
 
 type Player = {
@@ -18,6 +18,8 @@ export default function PlayerList({ players }: { players: Player[] }) {
   const [mountedPlayers, setMountedPlayers] = useState<Player[]>([])
   const [playerToDelete, setPlayerToDelete] = useState<Player | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
+  const [isDeletingAll, setIsDeletingAll] = useState(false)
 
   // This effect handles the animation of new players being added
   useEffect(() => {
@@ -62,6 +64,18 @@ export default function PlayerList({ players }: { players: Player[] }) {
     setPlayerToDelete(null)
   }
 
+  const handleConfirmDeleteAll = async () => {
+    setIsDeletingAll(true)
+    try {
+      await deleteAllPlayers()
+    } catch (error) {
+      console.error("Error deleting all players:", error)
+    } finally {
+      setIsDeletingAll(false)
+      setConfirmDeleteAll(false)
+    }
+  }
+
   if (players.length === 0) {
     return (
       <div className="text-center p-8 border border-amber-700 bg-black">
@@ -73,8 +87,16 @@ export default function PlayerList({ players }: { players: Player[] }) {
   return (
     <>
       <div className="border-2 border-amber-700 bg-black/50 p-2">
-        <div className="text-center mb-2 bg-amber-900/30 py-1">
+        <div className="relative text-center mb-2 bg-amber-900/30 py-1">
           <h2 className="text-xl font-bold text-yellow-500">PLAYERS</h2>
+          <button
+            onClick={() => setConfirmDeleteAll(true)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-400 focus:outline-none focus:ring-1 focus:ring-red-500 p-1 transition-colors"
+            aria-label="Remove all players"
+            title="Remove all players"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
         <div className="grid grid-cols-1 gap-2">
@@ -126,6 +148,18 @@ export default function PlayerList({ players }: { players: Player[] }) {
         isProcessing={isDeleting}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
+      />
+
+      {/* Delete-all Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmDeleteAll}
+        title="REMOVE ALL PLAYERS"
+        message={`Are you sure you want to remove all ${players.length} players from the game night? This cannot be undone.`}
+        confirmLabel="REMOVE ALL"
+        cancelLabel="CANCEL"
+        isProcessing={isDeletingAll}
+        onConfirm={handleConfirmDeleteAll}
+        onCancel={() => setConfirmDeleteAll(false)}
       />
     </>
   )
